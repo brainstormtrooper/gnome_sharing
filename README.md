@@ -1,4 +1,12 @@
 # Intent-Type Content Sharing Between Applications With Dbus
+This is a simple demo of how the sharing mechanism could work.
+## Running the demo
+Simply run in order in three consoles
+1) service.py
+2) receiver.py
+3) sender.py
+
+In sender.py, select "example app" (com.example.GtkApplication) to send test content.
 
 ## Reasoning
 
