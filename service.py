@@ -41,32 +41,19 @@ class ShareService(dbus.service.Object):
         dbus.service.Object.__init__(self, self.bus, self.object_path)
         # self.bus.publish(self.object_path, self.interface_name, self)
 
-    @dbus.service.method("com.brainstormtrooper.ShareService", in_signature='s')
-    def ShareContent(self, text):
-        print("Received content to share:", text)
-        try:
-            dest = json.loads(self.GetSubscribers())[0]['bus_name']
-            print(dest)
-            dpath = '/' + dest.replace('.', '/')
-        
-            # a = self.PrivateMessageSignal(text, dest[0])
-            self.service = self.bus.get_object(dest, f"{dpath}/shareSomething")
-            _message = self.service.get_dbus_method('shareSomething', f"{dest}.shareSomething")
-            payload = {'mime_type': 'text/plain', 'contents': GLib.base64_encode(b'text')}
-            _message(json.dumps(payload))
-        except Exception as e:
-            print(e)
-        
-        b = self.ShareContentSignal(text)
-
-    @dbus.service.signal("com.brainstormtrooper.ShareService", signature='s')
-    def ShareContentSignal(self, text):
-        print("Broadcasting content:", text)
-        # self.bus.emit_signal(self.object_path, self.interface_name, "ShareContentSignal", text)
-        return True
 
     @dbus.service.method("com.brainstormtrooper.ShareService", in_signature='s', out_signature='s')
     def get_sharing_apps(self, mime):
+        """
+        Provides a list of registered applications that share the given mime-type.
+        Mime-types can be wild-card sub typed suh as img/* for all image formats.
+        
+        Args:
+            mime (string): The mime-type the caller wants to share
+            
+        Returns:
+            string: JSON list of objects describing registered applications.
+        """
         res = []
         for s in self.subscribers:
             match = False
@@ -76,10 +63,19 @@ class ShareService(dbus.service.Object):
             if match:
                 res.append(s)
         return json.dumps(res)
-        # return json.dumps([s for s in self.subscribers if mime in s['share_types']])
+        
     
     @dbus.service.method("com.brainstormtrooper.ShareService", in_signature='s', out_signature='s')
     def register_sharing(self, ob):
+        """
+        Registers an application as accepting to share certain mime-types
+        
+        Args:
+            ob (string): JSON object describing the application (id, name, accepted mime-types).
+            
+        Returns:
+            string: JSON object with status code and message.
+        """
         myob = json.loads(ob)
         if myob not in self.subscribers:
             self.subscribers.append(myob)
@@ -93,6 +89,5 @@ class ShareService(dbus.service.Object):
 dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 service = ShareService()
 name = dbus.service.BusName("com.brainstormtrooper.ShareService", service.bus)
-# service.bus.add_signal_receiver(service.on_signal_subscribed, "ShareContentSignal", service.interface_name, None, service.object_path)
 loop = GLib.MainLoop()
 loop.run()
