@@ -59,8 +59,8 @@ We stop here, because the current draft does not describe how to hand the conten
 
 ### Continuation based on my demo
 The user of Application A has selected Application B to share some content (a .jpg photo) to/through...
-8) Application A calls a dbus method like org.freedesktop.intents.sharing.share (or whatever is settled upon) and provides the id of Application B (org.exaple.application_b), the mime-type (image/jpg), and the content of the photo being shared base64 encoded.
-9) Based on the id of Application B, dbus will call the ActivateAction method to activate the ReceiveShare action of Application B with the mime-type and base64 content as parameters.
+8) Application A builds a dbus path to the expected ActivateAction method of Application B based on the id of Application B
+9) Application A calls the dbus method and provides the mime-type (image/jpg), and the content of the photo being shared base64 encoded.
 10) Application B will then present the User with the interface to handle the content received (edit, forward, whatever...)
 
 # Requirements / Criteria
