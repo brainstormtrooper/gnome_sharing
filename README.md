@@ -1,12 +1,11 @@
 # Intent-Type Content Sharing Between Applications With Dbus
 This is a simple demo of how the sharing mechanism could work.
 ## Running the demo
-Simply run in order in three consoles
+Simply run in order in two consoles
 1) service.py
 2) receiver.py
-3) sender.py
 
-In sender.py, select "example app" (com.example.GtkApplication) to send test content.
+In sender.py, select "Foo Viewer" (com.example.GtkApplication) to send test content.
 
 ## Reasoning
 
@@ -15,28 +14,29 @@ This is an intuitive and convenient way of distributing content.
 
 ## Proposal Basics
 
-- Dbus could be used to handle intent registration and informing sharing applications of which receiving applications are available.
-- Each application would be responsible for registering any sharing intent with Dbus. This could be done at install or update, or event on application launch. The application should also be able to update the list of mime-types it shares (when a new version is installed, for example).
-- Applications could ask Dbus for a list of other Applications that would accept a given mime-type.
-- Dbus would keep the register in the file system (shared between User ans System level).
-- Applications could implement a simple Dbus interface to receive shared content.
+- Freedesktop applications provide for application Actions as defined in the desktop specification.
+- Dbus activation as described in the desktop specification allows for an AtivateAction method to be called on any dbus activatable application.
+- Applications can be associated with mime-types through the mime type specification.
+- A draft (WIP) intent apps specification would allow applications to be associated with "intents".
+- Intents could be anything, so Share could be an intent that could be associated with applications that could "share" content.
+- Applications could implement a ReceiveShare action to handle incoming shared content.
 
 ## Proposed Workflow
 
-Application A (at launch or Install/Update) → (Register Accepted mime-types) → Dbus
-
-Application B (at launch or Install/Update) → (Register Accepted mime-types) → Dbus (Dbus does not keep duplicates)
+Application A (on install?) → (Register handled mime-types and intents such as sharing) → Writes to config files
 
 Application B User wants to share some content
 
-Application B → (mime-type) → Dbus to get list of possible destination applications
+Application B → Reads intentapps.list file(s) to find applications that share content (like Application A)
 
-Dbus → (list of Name and ID of applications) → Application B
+Application B → Reads mimeapps.list file(s) to find applications that handle the mime-type of the content te user wants to share.
+
+Application B → Filter findings to get desktop entries of applications that have Share as an intent and  that handle the desired mime-type.
+
+Application B → Reads .desktop files to get names of candidate applications in order to present the User with a list of applications.
 
 User selects destination application Application A
 
-Application B → (mime-type and base64 content string) → Application A
-
-Application A → (ACK message w/status code) → Application B
+Application B → (mime-type and base64 content string) → Application A using the dbus ActivateAction method
 
 Application A treats the content as designed…
