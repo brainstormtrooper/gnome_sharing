@@ -1,0 +1,7 @@
+[Default Applications]
+application/bzip2=org.gnome.FileRoller.desktop
+application/clarisworks=libreoffice-writer.desktop
+image/jpg=org.gnome.eog.desktop
+[Added Associations]
+image/jpg=com.example.GtkApplication.desktop
+text/plain=com.example.GtkApplication.desktop 

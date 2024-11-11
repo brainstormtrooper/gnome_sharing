@@ -1,0 +1,5 @@
+[Default Applications]
+org.freedesktop.intent.calculator=org.gnome.Calculator.desktop
+[Added Associations]
+org.freedesktop.intent.calculator=org.gnome.Calculator.desktop;xcalc.desktop
+org.freedesktop.intent.sharing=com.example.GtkApplication.desktop;org.gajim.Gajim.desktop;org.exaple.some_other_app.desktop

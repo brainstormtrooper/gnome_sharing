@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Foo Viewer
+Comment=The best viewer for Foo objects available!
+TryExec=fooview
+Exec=fooview %F
+DBusActivatable=true
+Icon=fooview
+MimeType=image/x-foo;image/jpg;text/plain
+Actions=Share
+
+[Desktop Action ReceiveShare]
+Name=Receive Share

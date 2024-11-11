@@ -2,40 +2,11 @@ import gi
 import os
 import sys
 import json
+import configparser
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gio, Gtk
-
-#
-# Connect to session bus and create a proxy to execute functions
-#
-bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-proxy = Gio.DBusProxy.new_sync(
-    bus,
-    Gio.DBusProxyFlags.NONE,
-    None,
-    'com.brainstormtrooper.ShareService',
-    '/com/brainstormtrooper/ShareService',
-    'com.brainstormtrooper.ShareService',
-    None
-)        
-
-#
-# This is the description of our interface for accepting shared content
-# It is used below to create the actual interface on the bus.
-#    
-interface_xml = """
-<node>
-  <interface name='com.example.GtkApplicationSender.sharing'>
-    <method name='share_content'>
-      <arg type='s' name='content' direction='in'/>
-      <arg type='s' name='response' direction='out'/>
-    </method>
-  </interface>
-</node>
-"""        
-        
 
          
 
@@ -48,45 +19,15 @@ class MyApp(Adw.Application):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.connect('activate', self.on_activate)
-        self.object_path = "/com/brainstormtrooper/ShareService"
-        self.interface_name = "com.brainstormtrooper.ShareService"
-        
-        #
-        # This is the registration object
-        # It describes the application and what it accepts to share
-        #
-        reg = {
-            'human_name': 'Sending app',
-            'bus_name': 'com.example.GtkApplicationSender',
-            'share_types': [ 'text/plain' ],
-            'share_files': True
-        }
-        
-        #
-        # Here we call the sharing service and register what the application will accept
-        # using the proxy we created above.
-        #
-        result = proxy.register_sharing('(s)', json.dumps(reg))
-        
-        #
-        # Here we create the interface for the application to accept shared content
-        # This should probably be moved...
-        #
-        Gio.DBusConnection.register_object(
-            bus,
-            '/com/example/GtkApplicationSender/sharing',
-            Gio.DBusNodeInfo.new_for_xml(interface_xml).interfaces[0],
-            self.do_handle_incoming_share
-        )
-
         
         
-    def do_handle_incoming_share(self, c, i, path, interface, method, payload, invocation):
+        
+    def on_receiveShare(self, action, parameter, app):
         """
         Handles the payload content boing shared
         See the receiver.py application for more code and documentation.
         """
-        print(payload)
+        pass
         
 
     def on_activate(self, app):
@@ -96,12 +37,41 @@ class MyApp(Adw.Application):
         myListbox = Gtk.ListBox()
         
         #
-        # Here we ask dbus what applications are registered as accepting 
-        # what we want to share (text/plain in this example).
+        # Here we want to find the applications to/through which we can share our content 
+        # We need to read the intentapps.list and mimeapps.list files
+        # In reality, we would need to go through a heirarchy of folders and combine the found values.
+        # For demo simplicity, I am just reading a fixed (fictitious) set from a demo subfolder.
         #
-        registered = proxy.get_sharing_apps('(s)', 'text/plain')
-        print(registered)
-        mystrings = [json.dumps([item['human_name'], item['bus_name']]) for item in json.loads(registered)]
+        config_intents = configparser.RawConfigParser()
+        config_intents.read('./demo_home/config/intentapps.list')
+        intent_dict = dict(config_intents.items('Added Associations'))
+        config_mimes = configparser.RawConfigParser()
+        config_mimes.read('./demo_home/config/mimeapps.list')
+        mime_dict = dict(config_mimes.items('Added Associations'))
+        
+        sharing_apps = intent_dict['org.freedesktop.intent.sharing'].split(';')
+        mime_apps = mime_dict['text/plain'].split(';')
+        
+        #
+        # The sharing candidates are the entries in intentapps.list under the "share" intent key
+        # that also have an entry in the mimeapps.list file under the correct mime-type key (text/plain for this demo)
+        #
+        registered_desktops = [d for d in sharing_apps if d in mime_apps]
+        
+        mystrings = []
+        
+        #
+        # In orger to present the user of our application with a list of sharing candidates,
+        # we need to get the application name from the .desktop file.
+        #
+        for d in registered_desktops:
+                config_desktop = configparser.RawConfigParser()
+                config_desktop.read(f"./demo_home/local/share/applications/{d}")
+                desktop_dict = dict(config_desktop.items('Desktop Entry'))
+                human_name = desktop_dict['name']
+                bus_name = d.replace('.desktop', '')
+                mystrings.append(json.dumps([human_name, bus_name]))
+        
         print(mystrings)
         mymodel = Gtk.StringList(strings=mystrings)
         myListbox.bind_model(mymodel, self.create_item_for_list_box)
@@ -123,13 +93,14 @@ class MyApp(Adw.Application):
         # Here we create a proxy for the destination (receiving) application
         # based on the application's id.
         #
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         myproxy = Gio.DBusProxy.new_sync(
             bus,
             Gio.DBusProxyFlags.NONE,
             None,
             item.get_subtitle(),
-            '/' + item.get_subtitle().replace('.','/')  + '/sharing',
-            item.get_subtitle() + '.sharing',
+            '/' + item.get_subtitle().replace('.','/'),
+            'org.freedesktop.Application',
             None
         )  
         
@@ -137,14 +108,14 @@ class MyApp(Adw.Application):
         # Here we create a payload with the mime-type of the content we are sharing
         # and a base64 encoded string of the content
         #
-        payload = {'mime_type': 'text/plain', 'contents': GLib.base64_encode(b'some text')}
+        bytestr = b"some text"
+        payload = json.dumps({'mime_type': 'text/plain', 'contents': GLib.base64_encode(bytestr)})
         
         #
-        # Here we call the share_content function on our receiving application with the payload we created.
-        # In response, we should get a status code and message (see receiver.py for example)
+        # Here we call the ActivateAction dbus method with our action name and the payload we created.
         #
-        res = myproxy.share_content('(s)', json.dumps(payload))
-        print(res)
+        variant = GLib.Variant('(sava{sv})', ('ReceiveShare', [GLib.Variant('(s)', (payload,))], {'key': GLib.Variant('(s)', ('value',))}))
+        myproxy.call_sync('ActivateAction', variant, Gio.DBusCallFlags.NONE, -1, None)
 
     def create_item_for_list_box(self, list_item):
         """
