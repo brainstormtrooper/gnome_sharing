@@ -2,8 +2,8 @@
 This is a simple demo of how the sharing mechanism could work.
 ## Running the demo
 Simply run in order in two consoles
-1) service.py
-2) receiver.py
+1) receiver.py
+2) sender.py
 
 In sender.py, select "Foo Viewer" (com.example.GtkApplication) to send test content.
 
